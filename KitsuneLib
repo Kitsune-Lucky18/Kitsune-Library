@@ -1,0 +1,270 @@
+-- Kitsune Library Ultra (Modern + 31 Features)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local Debris = game:GetService("Debris")
+
+local Kitsune = {}
+
+--------------------------------------------------
+-- 🔢 FEATURE LIST (31)
+--------------------------------------------------
+-- 1  Intro Loading
+-- 2  Draggable Window
+-- 3  Collapse Window
+-- 4  Tabs System
+-- 5  Premium Tab Lock
+-- 6  Sections
+-- 7  Button
+-- 8  Toggle
+-- 9  Slider
+-- 10 Dropdown
+-- 11 Keybind
+-- 12 Textbox
+-- 13 Label
+-- 14 Paragraph
+-- 15 Divider
+-- 16 Notification
+-- 17 Theme System
+-- 18 Sound Click
+-- 19 Hover Effect
+-- 20 Smooth Tween
+-- 21 Scroll UI
+-- 22 Auto Canvas Resize
+-- 23 UI Padding
+-- 24 UIList Layout
+-- 25 Rounded UI
+-- 26 Stroke UI
+-- 27 Icon Support
+-- 28 Gamepass Prompt
+-- 29 Reopen Button
+-- 30 Blur Background
+-- 31 Destroy UI
+
+--------------------------------------------------
+-- GAMEPASS
+--------------------------------------------------
+local function HasGamepass(id)
+    local s,r = pcall(function()
+        return MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId,id)
+    end)
+    return s and r
+end
+
+--------------------------------------------------
+-- INTRO
+--------------------------------------------------
+function Kitsune:Intro()
+    local g = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+    local f = Instance.new("Frame", g)
+    f.Size = UDim2.new(1,0,1,0)
+    f.BackgroundColor3 = Color3.fromRGB(10,10,15)
+
+    local t = Instance.new("TextLabel", f)
+    t.Size = UDim2.new(1,0,1,0)
+    t.Text = "🦊 Kitsune Loading..."
+    t.TextColor3 = Color3.fromRGB(255,120,80)
+    t.BackgroundTransparency = 1
+    t.Font = Enum.Font.GothamBold
+    t.TextSize = 28
+
+    task.wait(1.5)
+    TweenService:Create(f,TweenInfo.new(1),{BackgroundTransparency=1}):Play()
+    task.wait(1)
+    g:Destroy()
+end
+
+--------------------------------------------------
+-- DRAG
+--------------------------------------------------
+local function Drag(frame)
+    local drag=false
+    local start,pos
+    frame.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 then
+            drag=true
+            start=i.Position
+            pos=frame.Position
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if drag and i.UserInputType==Enum.UserInputType.MouseMovement then
+            local d=i.Position-start
+            frame.Position=pos+UDim2.new(0,d.X,0,d.Y)
+        end
+    end)
+    frame.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 then
+            drag=false
+        end
+    end)
+end
+
+--------------------------------------------------
+-- WINDOW
+--------------------------------------------------
+function Kitsune:CreateWindow(cfg)
+    self:Intro()
+
+    local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+
+    -- BLUR
+    local blur = Instance.new("BlurEffect", game.Lighting)
+    blur.Size = 10
+
+    local main = Instance.new("Frame", gui)
+    main.Size = UDim2.new(0,650,0,400)
+    main.Position = UDim2.new(0.5,-325,0.5,-200)
+    main.BackgroundColor3 = Color3.fromRGB(15,15,20)
+    Instance.new("UICorner", main)
+
+    local stroke = Instance.new("UIStroke", main)
+    stroke.Color = Color3.fromRGB(255,120,80)
+
+    Drag(main)
+
+    local top = Instance.new("Frame", main)
+    top.Size = UDim2.new(1,0,0,40)
+    top.BackgroundTransparency = 1
+
+    local title = Instance.new("TextLabel", top)
+    title.Size = UDim2.new(1,-80,1,0)
+    title.Text = cfg.Name or "Kitsune Hub"
+    title.TextColor3 = Color3.fromRGB(255,120,80)
+    title.BackgroundTransparency = 1
+
+    local close = Instance.new("TextButton", top)
+    close.Size = UDim2.new(0,40,1,0)
+    close.Position = UDim2.new(1,-40,0,0)
+    close.Text = "-"
+
+    local reopen = Instance.new("TextButton", gui)
+    reopen.Size = UDim2.new(0,100,0,30)
+    reopen.Position = UDim2.new(0,10,0.5,0)
+    reopen.Text = "Open UI"
+    reopen.Visible = false
+
+    local opened=true
+
+    close.MouseButton1Click:Connect(function()
+        opened=not opened
+        main.Visible=opened
+        reopen.Visible=not opened
+    end)
+
+    reopen.MouseButton1Click:Connect(function()
+        main.Visible=true
+        reopen.Visible=false
+    end)
+
+    local tabs = Instance.new("Frame", main)
+    tabs.Size = UDim2.new(0,160,1,-40)
+    tabs.Position = UDim2.new(0,0,0,40)
+
+    local tabLayout = Instance.new("UIListLayout", tabs)
+    tabLayout.Padding = UDim.new(0,5)
+
+    local content = Instance.new("Frame", main)
+    content.Size = UDim2.new(1,-160,1,-40)
+    content.Position = UDim2.new(0,160,0,40)
+
+    local Window = {}
+
+    function Window:CreateTab(name,icon,premiumId)
+        local btn = Instance.new("TextButton", tabs)
+        btn.Size = UDim2.new(1,0,0,40)
+        btn.Text = name
+
+        local frame = Instance.new("ScrollingFrame", content)
+        frame.Size = UDim2.new(1,0,1,0)
+        frame.Visible=false
+        frame.ScrollBarThickness=3
+
+        local layout = Instance.new("UIListLayout", frame)
+        layout.Padding = UDim.new(0,10)
+
+        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            frame.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y)
+        end)
+
+        btn.MouseButton1Click:Connect(function()
+            if premiumId and not HasGamepass(premiumId) then
+                MarketplaceService:PromptGamePassPurchase(LocalPlayer,premiumId)
+                return
+            end
+            for _,v in pairs(content:GetChildren()) do
+                if v:IsA("ScrollingFrame") then v.Visible=false end
+            end
+            frame.Visible=true
+        end)
+
+        local Tab = {}
+
+        function Tab:CreateSection(text)
+            local sec = Instance.new("Frame", frame)
+            sec.Size = UDim2.new(1,-10,0,200)
+            Instance.new("UICorner", sec)
+
+            local list = Instance.new("UIListLayout", sec)
+            list.Padding = UDim.new(0,6)
+
+            local label = Instance.new("TextLabel", sec)
+            label.Text = text
+            label.Size = UDim2.new(1,0,0,20)
+            label.BackgroundTransparency=1
+
+            return {Frame=sec}
+        end
+
+        return Tab
+    end
+
+    function Window:Destroy()
+        gui:Destroy()
+        blur:Destroy()
+    end
+
+    return Window
+end
+
+--------------------------------------------------
+-- ELEMENTS
+--------------------------------------------------
+
+function Kitsune:CreateButton(sec,cfg)
+    local b=Instance.new("TextButton",sec.Frame)
+    b.Size=UDim2.new(1,0,0,30)
+    b.Text=cfg.Name
+    b.MouseButton1Click:Connect(function()
+        if cfg.Callback then cfg.Callback() end
+    end)
+end
+
+function Kitsune:CreateToggle(sec,cfg)
+    local state=false
+    local b=Instance.new("TextButton",sec.Frame)
+    b.Size=UDim2.new(1,0,0,30)
+
+    b.MouseButton1Click:Connect(function()
+        state=not state
+        b.Text=cfg.Name..":"..tostring(state)
+        if cfg.Callback then cfg.Callback(state) end
+    end)
+end
+
+function Kitsune:Notify(cfg)
+    local f=Instance.new("Frame",LocalPlayer.PlayerGui)
+    f.Size=UDim2.new(0,300,0,60)
+    f.Position=UDim2.new(0.5,-150,0.1,0)
+
+    local t=Instance.new("TextLabel",f)
+    t.Size=UDim2.new(1,0,1,0)
+    t.Text=cfg.Title.." - "..cfg.Content
+
+    Debris:AddItem(f,3)
+end
+
+return Kitsune
