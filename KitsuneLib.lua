@@ -1,4 +1,4 @@
--- KitsuneLib.lua (Fexed Style + Premium Gate)
+-- KitsuneLib.lua (Fexed Style + Premium Tab Gate)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -16,13 +16,9 @@ KitsuneLib.Themes = {
     Cyber  = {Background = Color3.fromRGB(10,10,30), Text = Color3.fromRGB(0,255,180)},
 }
 
--- ID Gamepass Premium
-local PremiumGamepassID = 12345678 -- ganti dengan ID gamepass kamu
-
--- Cek apakah player punya gamepass premium
-local function HasPremium()
+local function HasGamepass(id)
     local success, owns = pcall(function()
-        return MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, PremiumGamepassID)
+        return MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, id)
     end)
     return success and owns
 end
@@ -31,9 +27,8 @@ end
 function KitsuneLib:CreateWindow(config)
     local theme = self.Themes[config.Theme] or self.Themes.Dark
 
-    local gui = Instance.new("ScreenGui")
+    local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
     gui.Name = "KitsuneHub"
-    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
     local mainFrame = Instance.new("Frame", gui)
     mainFrame.Size = UDim2.new(0, 600, 0, 350)
@@ -65,7 +60,7 @@ function KitsuneLib:CreateWindow(config)
     Instance.new("UICorner", ContentHolder).CornerRadius = UDim.new(0,12)
 
     local Window = {Tabs = {}, Theme = theme, ContentHolder = ContentHolder, TabHolder = TabHolder}
-    function Window:CreateTab(name, iconId, premium)
+    function Window:CreateTab(name, iconId, premiumId)
         local TabButton = Instance.new("TextButton", TabHolder)
         TabButton.Size = UDim2.new(1,0,0,40)
         TabButton.BackgroundColor3 = theme.Background
@@ -92,9 +87,8 @@ function KitsuneLib:CreateWindow(config)
         TabFrame.BackgroundTransparency = 1
 
         TabButton.MouseButton1Click:Connect(function()
-            if premium and not HasPremium() then
-                -- kalau tab premium tapi player belum beli
-                MarketplaceService:PromptGamePassPurchase(LocalPlayer, PremiumGamepassID)
+            if premiumId and not HasGamepass(premiumId) then
+                MarketplaceService:PromptGamePassPurchase(LocalPlayer, premiumId)
                 return
             end
             for _,child in pairs(ContentHolder:GetChildren()) do
@@ -127,5 +121,134 @@ function KitsuneLib:CreateWindow(config)
     return Window
 end
 
--- Elements (Toggle, Button, Slider, Dropdown, Keybind, Textbox, Notify)
--- sama seperti versi sebelumnya, tinggal diisi ke Section.Frame
+-- Elements
+function KitsuneLib:CreateToggle(section, config)
+    local btn = Instance.new("TextButton", section.Frame)
+    btn.Size = UDim2.new(1,0,0,30)
+    btn.Text = config.Name.." : OFF"
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+
+    local state = config.CurrentValue or false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = config.Name.." : "..(state and "ON" or "OFF")
+        if config.Callback then config.Callback(state) end
+    end)
+end
+
+function KitsuneLib:CreateButton(section, config)
+    local btn = Instance.new("TextButton", section.Frame)
+    btn.Size = UDim2.new(1,0,0,30)
+    btn.Text = config.Name
+    btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+
+    btn.MouseButton1Click:Connect(function()
+        if config.Callback then config.Callback() end
+    end)
+end
+
+function KitsuneLib:CreateSlider(section, config)
+    local slider = Instance.new("TextButton", section.Frame)
+    slider.Size = UDim2.new(1,0,0,30)
+    slider.Text = config.Name.." : "..config.CurrentValue
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", slider).CornerRadius = UDim.new(0,8)
+
+    local value = config.CurrentValue or config.Range[1]
+    slider.MouseButton1Click:Connect(function()
+        value = value + 1
+        if value > config.Range[2] then value = config.Range[1] end
+        slider.Text = config.Name.." : "..value
+        if config.Callback then config.Callback(value) end
+    end)
+end
+
+function KitsuneLib:CreateDropdown(section, config)
+    local btn = Instance.new("TextButton", section.Frame)
+    btn.Size = UDim2.new(1,0,0,30)
+    btn.Text = config.Name.." : "..config.CurrentOption
+    btn.BackgroundColor3 = Color3.fromRGB(120,120,120)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+
+    local current = config.CurrentOption
+    btn.MouseButton1Click:Connect(function()
+        local idx = table.find(config.Options, current) or 1
+        idx = idx % #config.Options + 1
+        current = config.Options[idx]
+        btn.Text = config.Name.." : "..current
+        if config.Callback then config.Callback(current) end
+    end)
+end
+
+function KitsuneLib:CreateKeybind(section, config)
+    local btn = Instance.new("TextButton", section.Frame)
+    btn.Size = UDim2.new(1,0,0,30)
+    btn.Text = config.Name.." : "..config.CurrentKey
+    btn.BackgroundColor3 = Color3.fromRGB(140,140,140)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+
+    local key = config.CurrentKey
+    btn.MouseButton1Click:Connect(function()
+        btn.Text = config.Name.." : Press any key..."
+        local conn
+        conn = game:GetService("UserInputService").InputBegan:Connect(function(input, gpe)
+            if gpe then return end
+            key = input.KeyCode.Name
+            btn.Text = config.Name.." : "..key
+            if config.Callback then config.Callback(key) end
+            conn:Disconnect()
+        end)
+    end)
+end
+
+function KitsuneLib:CreateTextbox(section, config)
+    local box = Instance.new("TextBox", section.Frame)
+    box.Size = UDim2.new(1,0,0,30)
+    box.PlaceholderText = config.Name
+    box.BackgroundColor3 = Color3.fromRGB(160,160,160)
+    box.TextColor3 = Color3.fromRGB(0,0,0)
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0,8)
+
+    box.FocusLost:Connect(function()
+        if config.Callback then config.Callback(box.Text) end
+    end)
+end
+
+function KitsuneLib:Notify(config)
+    local msgFrame = Instance.new("Frame", LocalPlayer:WaitForChild("PlayerGui"))
+    msgFrame.Size = UDim2.new(0,300,0,60)
+    msgFrame.Position = UDim2.new(0.5,-150,0.1,0)
+    msgFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    Instance.new("UICorner", msgFrame).CornerRadius = UDim.new(0,12)
+    local stroke = Instance.new("UIStroke", msgFrame)
+    stroke.Thickness = 2
+    stroke.Color = Color3.fromRGB(255,255,255)
+
+    local title = Instance.new("TextLabel", msgFrame)
+    title.Size = UDim2.new(1,0,0,25)
+    title.Text = config.Title or "Notification"
+    title.TextColor3 = Color3.fromRGB(255,255,255)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 18
+
+    local content = Instance.new("TextLabel", msgFrame)
+    content.Size = UDim2.new(1,0,0,35)
+    content.Position = UDim2.new(0,0,0,25)
+    content.Text = config.Content or ""
+    content.TextColor3 = Color3.fromRGB(200,200,200)
+    content.BackgroundTransparency = 1
+    content.Font = Enum.Font.Gotham
+    content.TextSize = 16
+
+    game:GetService("Debris"):AddItem(msgFrame, config.Duration or 3)
+end
+
+return KitsuneLib
